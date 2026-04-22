@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXUS · Futures Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Barlow+Condensed:wght@300;400;600;700;800&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:         #080a0c;
+  --bg1:        #0d1014;
+  --bg2:        #111419;
+  --bg3:        #181d24;
+  --border:     #1e252f;
+  --border2:    #252d38;
+  --amber:      #f0a500;
+  --amber-dim:  #7a5200;
+  --amber-glow: #f0a50018;
+  --green:      #00c896;
+  --green-dim:  #005a42;
+  --red:        #f04060;
+  --red-dim:    #6a1828;
+  --text:       #c8d4e0;
+  --text-dim:   #4a5a6a;
+  --text-mid:   #7a8a9a;
+  --mono:       'Space Mono', monospace;
+  --display:    'Barlow Condensed', sans-serif;
+  --sans:       'Barlow', sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;overflow:hidden}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px);pointer-events:none;z-index:9999}
+
+.shell{display:grid;grid-template-rows:46px 1fr;grid-template-columns:256px 1fr 290px;height:100vh}
+
+/* topbar */
+.topbar{grid-column:1/-1;display:flex;align-items:center;background:var(--bg1);border-bottom:1px solid var(--border);z-index:10}
+.logo{display:flex;align-items:center;gap:10px;padding:0 18px;border-right:1px solid var(--border);height:100%;flex-shrink:0}
+.logo-sq{display:grid;grid-template-columns:1fr 1fr;gap:2px;width:20px;height:20px}
+.logo-sq b{background:var(--amber);display:block}
+.logo-sq b:nth-child(2),.logo-sq b:nth-child(3){opacity:.4}
+.logo-name{font-family:var(--display);font-size:19px;font-weight:800;letter-spacing:5px;color:var(--amber)}
+.ticker-bar{flex:1;display:flex;align-items:center;gap:24px;padding:0 20px;overflow:hidden;font-family:var(--mono);font-size:10px}
+.tick{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.tick-sym{color:var(--text);font-weight:700}
+.tick-price{color:var(--amber)}
+.tick-chg.up{color:var(--green)}
+.tick-chg.down{color:var(--red)}
+.topbar-end{display:flex;align-items:center;gap:10px;padding:0 14px;border-left:1px solid var(--border);height:100%;flex-shrink:0}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--text-dim);flex-shrink:0;transition:background .4s,box-shadow .4s}
+.dot.live{background:var(--green);box-shadow:0 0 8px var(--green);animation:blink 2s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+.conn-label{font-family:var(--mono);font-size:9px;letter-spacing:1.5px;color:var(--text-dim);text-transform:uppercase;transition:color .3s}
+.conn-label.live{color:var(--green)}
+.clock{font-family:var(--mono);font-size:11px;color:var(--text-mid);letter-spacing:1px}
+
+/* left */
+.left{grid-column:1;grid-row:2;background:var(--bg1);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
+.panel-hd{font-family:var(--display);font-size:9px;font-weight:700;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase;padding:12px 14px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.panel-hd::before{content:'';width:3px;height:3px;border-radius:50%;background:var(--amber);flex-shrink:0}
+.cred-body{padding:14px;display:flex;flex-direction:column;gap:11px}
+.fgroup{display:flex;flex-direction:column;gap:5px}
+.flabel{font-family:var(--mono);font-size:8px;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase}
+.finput{background:var(--bg3);border:1px solid var(--border2);border-radius:3px;color:var(--text);font-family:var(--mono);font-size:11px;padding:8px 10px;outline:none;width:100%;transition:border-color .15s,box-shadow .15s}
+.finput::placeholder{color:var(--text-dim)}
+.finput:focus{border-color:var(--amber-dim);box-shadow:0 0 0 2px var(--amber-glow)}
+.finput.err{border-color:var(--red-dim)}
+.finput.ok{border-color:var(--green-dim)}
+.btn-connect{background:var(--amber);color:#000;border:none;border-radius:3px;padding:10px;font-family:var(--display);font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .15s,transform .1s;width:100%}
+.btn-connect:hover{background:#ffc840}
+.btn-connect:active{transform:scale(.98)}
+.btn-connect:disabled{opacity:.4;cursor:not-allowed}
+.conn-msg{font-family:var(--mono);font-size:9px;padding:6px 8px;border-radius:3px;text-align:center;display:none}
+.conn-msg.ok{background:rgba(0,200,150,.1);color:var(--green);border:1px solid var(--green-dim)}
+.conn-msg.err{background:rgba(240,64,96,.1);color:var(--red);border:1px solid var(--red-dim)}
+.hr{height:1px;background:var(--border)}
+.balance-body{padding:10px 14px}
+.bal-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)}
+.bal-row:last-child{border-bottom:none}
+.bal-k{font-family:var(--mono);font-size:8px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase}
+.bal-v{font-family:var(--mono);font-size:11px;color:var(--amber)}
+.bal-v.pos{color:var(--green)}
+.bal-v.neg{color:var(--red)}
+.server-status{padding:10px 14px;display:flex;flex-direction:column;gap:6px}
+.srv-row{display:flex;align-items:center;gap:8px}
+.srv-dot{width:6px;height:6px;border-radius:50%;background:var(--text-dim);flex-shrink:0}
+.srv-dot.up{background:var(--green);box-shadow:0 0 6px var(--green)}
+.srv-dot.down{background:var(--red)}
+.srv-label{font-family:var(--mono);font-size:9px;color:var(--text-mid)}
+.srv-url{font-family:var(--mono);font-size:8px;color:var(--text-dim)}
+
+/* center */
+.center{grid-column:2;grid-row:2;background:var(--bg);overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:14px}
+.sec-title{font-family:var(--display);font-size:10px;font-weight:700;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase;display:flex;align-items:center;gap:10px;margin-bottom:2px}
+.sec-title::after{content:'';flex:1;height:1px;background:var(--border)}
+.side-sel{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--border2);border-radius:4px;overflow:hidden}
+.side-btn{padding:13px;font-family:var(--display);font-size:17px;font-weight:800;letter-spacing:3px;text-transform:uppercase;cursor:pointer;border:none;background:var(--bg2);color:var(--text-dim);transition:all .2s;border-bottom:3px solid transparent}
+.side-btn.buy{background:rgba(0,200,150,.12);color:var(--green);border-bottom-color:var(--green)}
+.side-btn.sell{background:rgba(240,64,96,.12);color:var(--red);border-bottom-color:var(--red)}
+.side-btn:hover:not(.buy):not(.sell){background:var(--bg3);color:var(--text-mid)}
+.type-row{display:flex;gap:8px}
+.type-btn{padding:6px 16px;font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;border:1px solid var(--border2);background:var(--bg2);color:var(--text-dim);cursor:pointer;border-radius:3px;transition:all .15s}
+.type-btn.active{border-color:var(--amber);color:var(--amber);background:var(--amber-glow)}
+.igrid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.igrid .full{grid-column:1/-1}
+.ibox{display:flex;flex-direction:column;gap:5px}
+.iunit-wrap{position:relative}
+.iunit{position:absolute;right:9px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:9px;color:var(--text-dim);pointer-events:none;letter-spacing:1px}
+.price-wrap{transition:opacity .2s}
+.price-wrap.hidden{opacity:.3;pointer-events:none}
+.summary-card{background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:12px 14px;display:flex;flex-direction:column;gap:7px}
+.sum-row{display:flex;justify-content:space-between;align-items:center}
+.sum-k{font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase}
+.sum-v{font-family:var(--mono);font-size:11px;color:var(--text)}
+.sum-v.hi{color:var(--amber);font-weight:700;font-size:13px}
+.btn-submit{width:100%;padding:14px;font-family:var(--display);font-size:19px;font-weight:800;letter-spacing:5px;text-transform:uppercase;border:none;border-radius:4px;cursor:pointer;transition:filter .15s,transform .1s;display:flex;align-items:center;justify-content:center;gap:10px;position:relative;overflow:hidden}
+.btn-submit::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent);transform:translateX(-100%);transition:transform .5s}
+.btn-submit:hover::after{transform:translateX(100%)}
+.btn-submit.buy{background:var(--green);color:#000}
+.btn-submit.sell{background:var(--red);color:#fff}
+.btn-submit:hover:not(:disabled){filter:brightness(1.12);transform:translateY(-1px)}
+.btn-submit:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.resp-card{border:1px solid var(--border);border-radius:4px;overflow:hidden;display:none;animation:fadein .3s ease}
+.resp-card.show{display:block}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.resp-hd{display:flex;justify-content:space-between;align-items:center;padding:9px 13px;background:var(--bg1);border-bottom:1px solid var(--border)}
+.resp-tag{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:2px;padding:2px 8px;border-radius:2px}
+.resp-tag.ok{background:rgba(0,200,150,.12);color:var(--green);border:1px solid var(--green-dim)}
+.resp-tag.err{background:rgba(240,64,96,.12);color:var(--red);border:1px solid var(--red-dim)}
+.resp-ts{font-family:var(--mono);font-size:9px;color:var(--text-dim)}
+.resp-body{padding:12px 14px;display:flex;flex-direction:column;gap:0}
+.resp-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)}
+.resp-row:last-child{border-bottom:none}
+.resp-k{font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase}
+.resp-v{font-family:var(--mono);font-size:11px;color:var(--text)}
+.resp-v.big{font-size:15px;color:var(--amber);font-weight:700}
+.resp-v.filled{color:var(--green)}
+.resp-v.new{color:var(--amber)}
+
+/* right */
+.right{grid-column:3;grid-row:2;background:var(--bg1);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.log-body{flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:1px;scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+.log-line{font-family:var(--mono);font-size:9px;line-height:1.6;padding:2px 5px;border-radius:2px;color:var(--text-mid);animation:logslide .2s ease;word-break:break-all}
+@keyframes logslide{from{opacity:0;transform:translateX(5px)}to{opacity:1;transform:none}}
+.log-line .lt{color:var(--text-dim);margin-right:5px}
+.log-line .lv{margin-right:5px}
+.log-line.info .lv{color:var(--amber)}
+.log-line.success .lv{color:var(--green)}
+.log-line.error .lv{color:var(--red)}
+.log-line.debug .lv,.log-line.warning .lv{color:var(--text-dim)}
+.hist-body{border-top:1px solid var(--border);max-height:200px;overflow-y:auto}
+.hist-item{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:7px 12px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:9px;transition:background .1s}
+.hist-item:hover{background:var(--bg2)}
+.h-side{font-weight:700;font-size:10px}
+.h-side.buy{color:var(--green)}
+.h-side.sell{color:var(--red)}
+.h-info{color:var(--text-mid)}
+.h-badge{display:inline-block;padding:1px 5px;border-radius:2px;font-size:8px;letter-spacing:1px}
+.h-badge.filled{background:rgba(0,200,150,.12);color:var(--green)}
+.h-badge.new{background:var(--amber-glow);color:var(--amber)}
+.h-badge.error{background:rgba(240,64,96,.12);color:var(--red)}
+.log-tabs{display:flex;border-bottom:1px solid var(--border)}
+.log-tab{flex:1;padding:6px;font-family:var(--mono);font-size:8px;letter-spacing:1px;text-transform:uppercase;text-align:center;color:var(--text-dim);cursor:pointer;border:none;background:transparent;border-bottom:2px solid transparent;transition:all .15s}
+.log-tab.active{color:var(--amber);border-bottom-color:var(--amber)}
+.log-tab:hover:not(.active){color:var(--text-mid)}
+.spin{width:14px;height:14px;border:2px solid rgba(255,255,255,.2);border-top-color:currentColor;border-radius:50%;animation:rot .6s linear infinite;display:none;flex-shrink:0}
+.spin.on{display:inline-block}
+@keyframes rot{to{transform:rotate(360deg)}}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(70px);background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:9px 18px;font-family:var(--mono);font-size:11px;z-index:1000;transition:transform .3s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;pointer-events:none}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.ok{border-color:var(--green);color:var(--green)}
+.toast.err{border-color:var(--red);color:var(--red)}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="logo">
+      <div class="logo-sq"><b></b><b></b><b></b><b></b></div>
+      <div class="logo-name">NEXUS</div>
+    </div>
+    <div class="ticker-bar">
+      <div class="tick"><span class="tick-sym">BTCUSDT</span><span class="tick-price" id="tp-BTC">—</span><span class="tick-chg" id="tc-BTC">—</span></div>
+      <div class="tick"><span class="tick-sym">ETHUSDT</span><span class="tick-price" id="tp-ETH">—</span><span class="tick-chg" id="tc-ETH">—</span></div>
+      <div class="tick"><span class="tick-sym">BNBUSDT</span><span class="tick-price" id="tp-BNB">—</span><span class="tick-chg" id="tc-BNB">—</span></div>
+      <div class="tick"><span class="tick-sym">SOLUSDT</span><span class="tick-price" id="tp-SOL">—</span><span class="tick-chg" id="tc-SOL">—</span></div>
+    </div>
+    <div class="topbar-end">
+      <div class="dot" id="connDot"></div>
+      <span class="conn-label" id="connLabel">OFFLINE</span>
+      <span class="clock" id="clock">--:--:--</span>
+    </div>
+  </header>
+
+  <!-- LEFT -->
+  <aside class="left">
+    <div class="panel-hd">Server Status</div>
+    <div class="server-status">
+      <div class="srv-row">
+        <div class="srv-dot" id="srvDot"></div>
+        <div>
+          <div class="srv-label" id="srvLabel">Checking FastAPI…</div>
+          <div class="srv-url">http://localhost:8000</div>
+        </div>
+      </div>
+    </div>
+    <div class="hr"></div>
+
+    <div class="panel-hd">API Credentials</div>
+    <div class="cred-body">
+      <div class="fgroup">
+        <div class="flabel">API Key</div>
+        <input class="finput" id="apiKey" type="password" placeholder="Testnet API key…">
+      </div>
+      <div class="fgroup">
+        <div class="flabel">API Secret</div>
+        <input class="finput" id="apiSecret" type="password" placeholder="Testnet API secret…">
+      </div>
+      <button class="btn-connect" id="connectBtn" onclick="doConnect()">
+        <div class="spin" id="connSpin"></div>
+        Connect to Testnet
+      </button>
+      <div class="conn-msg" id="connMsg"></div>
+    </div>
+    <div class="hr"></div>
+
+    <div class="panel-hd">Account Balance</div>
+    <div class="balance-body">
+      <div class="bal-row"><span class="bal-k">Wallet</span><span class="bal-v" id="bWallet">—</span></div>
+      <div class="bal-row"><span class="bal-k">Available</span><span class="bal-v" id="bAvail">—</span></div>
+      <div class="bal-row"><span class="bal-k">Unrealised PnL</span><span class="bal-v" id="bPnl">—</span></div>
+      <div class="bal-row"><span class="bal-k">Margin Bal</span><span class="bal-v" id="bMargin">—</span></div>
+    </div>
+  </aside>
+
+  <!-- CENTER -->
+  <main class="center">
+    <div class="sec-title">Place Order</div>
+
+    <div class="side-sel">
+      <button class="side-btn buy"  id="sBuy"  onclick="setSide('BUY')">▲ BUY / LONG</button>
+      <button class="side-btn"      id="sSell" onclick="setSide('SELL')">▼ SELL / SHORT</button>
+    </div>
+
+    <div>
+      <div class="flabel" style="margin-bottom:7px">Order Type</div>
+      <div class="type-row">
+        <button class="type-btn active" id="tMarket" onclick="setType('MARKET')">Market</button>
+        <button class="type-btn"        id="tLimit"  onclick="setType('LIMIT')">Limit</button>
+      </div>
+    </div>
+
+    <div class="igrid">
+      <div class="ibox full">
+        <div class="flabel">Symbol</div>
+        <input class="finput" id="symbol" value="BTCUSDT" placeholder="e.g. BTCUSDT"
+               oninput="this.value=this.value.toUpperCase();updateSummary()">
+      </div>
+      <div class="ibox">
+        <div class="flabel">Quantity</div>
+        <div class="iunit-wrap">
+          <input class="finput" id="qty" type="number" step="0.001" min="0.001" placeholder="0.01" oninput="updateSummary()">
+          <span class="iunit">BASE</span>
+        </div>
+      </div>
+      <div class="ibox price-wrap" id="priceWrap">
+        <div class="flabel">Limit Price</div>
+        <div class="iunit-wrap">
+          <input class="finput" id="price" type="number" step="0.01" min="0" placeholder="e.g. 95000" oninput="updateSummary()">
+          <span class="iunit">USDT</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="summary-card">
+      <div class="sum-row"><span class="sum-k">Direction</span><span class="sum-v hi" id="sumSide">BUY</span></div>
+      <div class="sum-row"><span class="sum-k">Type</span><span class="sum-v" id="sumType">MARKET</span></div>
+      <div class="sum-row"><span class="sum-k">Symbol</span><span class="sum-v" id="sumSym">BTCUSDT</span></div>
+      <div class="sum-row"><span class="sum-k">Quantity</span><span class="sum-v" id="sumQty">—</span></div>
+      <div class="sum-row" id="sumPrRow" style="display:none">
+        <span class="sum-k">Limit Price</span><span class="sum-v" id="sumPr">—</span>
+      </div>
+      <div class="sum-row">
+        <span class="sum-k">Route</span>
+        <span class="sum-v" style="color:var(--text-dim);font-size:9px">UI → FastAPI → bot/ → Binance</span>
+      </div>
+    </div>
+
+    <button class="btn-submit buy" id="submitBtn" onclick="doOrder()">
+      <span class="spin" id="subSpin"></span>
+      <span id="subLabel">EXECUTE LONG</span>
+    </button>
+
+    <div class="resp-card" id="respCard">
+      <div class="resp-hd">
+        <span class="resp-tag" id="respTag">SUCCESS</span>
+        <span class="resp-ts" id="respTs">—</span>
+      </div>
+      <div class="resp-body" id="respBody"></div>
+    </div>
+  </main>
+
+  <!-- RIGHT -->
+  <aside class="right">
+    <div class="panel-hd">Activity Log</div>
+    <div class="log-tabs">
+      <button class="log-tab active" id="tabUI"  onclick="switchTab('ui')">UI Events</button>
+      <button class="log-tab"        id="tabSrv" onclick="switchTab('server')">Server Logs</button>
+    </div>
+    <div class="log-body" id="logBody"></div>
+    <div class="hist-body">
+      <div class="panel-hd" style="border-top:1px solid var(--border)">Order History</div>
+      <div id="histList"></div>
+    </div>
+  </aside>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const API = 'http://localhost:8000';
+let side = 'BUY', orderType = 'MARKET', connected = false;
+let apiKey = '', apiSecret = '', logTab = 'ui', serverUp = false;
+
+// Clock
+setInterval(() => {
+  document.getElementById('clock').textContent = new Date().toUTCString().slice(17,25)+' UTC';
+}, 1000);
+
+// Server health
+async function checkServer() {
+  try {
+    const r = await fetch(`${API}/health`, { signal: AbortSignal.timeout(3000) });
+    serverUp = r.ok;
+  } catch { serverUp = false; }
+  document.getElementById('srvDot').className   = 'srv-dot '+(serverUp?'up':'down');
+  document.getElementById('srvLabel').textContent = serverUp
+    ? 'FastAPI running ✔  –  /docs available'
+    : 'Offline — run: python server.py';
+}
+checkServer();
+setInterval(checkServer, 7000);
+
+// Logging
+function log(msg, level='info') {
+  if (logTab !== 'ui') return;
+  _addLog(msg, level);
+}
+function _addLog(msg, level) {
+  const body = document.getElementById('logBody');
+  const tags = {info:'INFO',success:'DONE',error:'ERR!',debug:'DEBG',warning:'WARN'};
+  const el   = document.createElement('div');
+  el.className = `log-line ${level}`;
+  el.innerHTML = `<span class="lt">${new Date().toTimeString().slice(0,8)}</span><span class="lv">[${tags[level]||'INFO'}]</span>${esc(msg)}`;
+  body.appendChild(el);
+  body.scrollTop = body.scrollHeight;
+  while (body.children.length > 300) body.removeChild(body.firstChild);
+}
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// Tab switch
+function switchTab(tab) {
+  logTab = tab;
+  document.getElementById('tabUI').className  = 'log-tab'+(tab==='ui'    ?' active':'');
+  document.getElementById('tabSrv').className = 'log-tab'+(tab==='server'?' active':'');
+  document.getElementById('logBody').innerHTML = '';
+  if (tab === 'server') loadServerLogs();
+}
+async function loadServerLogs() {
+  if (!serverUp) { _addLog('Server offline – run: python server.py','error'); return; }
+  try {
+    const r = await fetch(`${API}/api/logs?lines=120`);
+    const d = await r.json();
+    document.getElementById('logBody').innerHTML = '';
+    (d.logs||[]).forEach(l => _addLog(l.text, l.level));
+  } catch { _addLog('Could not reach server','error'); }
+}
+setInterval(() => { if (logTab==='server') loadServerLogs(); }, 4000);
+
+// Toast
+function toast(msg, type='ok') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast ${type} show`;
+  setTimeout(() => el.className='toast', 2800);
+}
+
+// Connect
+async function doConnect() {
+  const key    = document.getElementById('apiKey').value.trim();
+  const secret = document.getElementById('apiSecret').value.trim();
+  if (!key || !secret) { toast('Enter API key and secret','err'); return; }
+  if (!serverUp) { toast('Start server first: python server.py','err'); log('Server is offline','error'); return; }
+
+  const btn  = document.getElementById('connectBtn');
+  const spin = document.getElementById('connSpin');
+  btn.disabled = true; spin.classList.add('on');
+  log('Sending credentials to FastAPI → bot/client.py…');
+
+  try {
+    const r = await fetch(`${API}/api/connect`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({api_key:key, api_secret:secret}),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail||`HTTP ${r.status}`);
+
+    apiKey = key; apiSecret = secret; connected = true;
+    log('Authenticated via bot/client.py ✔','success');
+    document.getElementById('connDot').className  = 'dot live';
+    document.getElementById('connLabel').textContent = 'LIVE – TESTNET';
+    document.getElementById('connLabel').className = 'conn-label live';
+    showConnMsg('✔ Connected — credentials verified by server', true);
+    updateBalance(d);
+    fetchTickers();
+    setInterval(fetchTickers,   6000);
+    setInterval(refreshBalance, 20000);
+  } catch(err) {
+    log(`Connection failed: ${err.message}`,'error');
+    showConnMsg(`✘ ${err.message}`, false);
+    toast('Connection failed','err');
+  } finally { btn.disabled=false; spin.classList.remove('on'); }
+}
+
+function showConnMsg(msg, ok) {
+  const el = document.getElementById('connMsg');
+  el.style.display='block'; el.textContent=msg;
+  el.className = `conn-msg ${ok?'ok':'err'}`;
+}
+
+// Balance
+function updateBalance(d) {
+  const f = v => parseFloat(v||0).toFixed(2)+' USDT';
+  document.getElementById('bWallet').textContent = f(d.totalWalletBalance);
+  document.getElementById('bAvail').textContent  = f(d.availableBalance);
+  document.getElementById('bMargin').textContent = f(d.totalMarginBalance);
+  const pnl = parseFloat(d.totalUnrealizedProfit||0);
+  const el  = document.getElementById('bPnl');
+  el.textContent = (pnl>=0?'+':'')+pnl.toFixed(2)+' USDT';
+  el.className = 'bal-v '+(pnl>=0?'pos':'neg');
+}
+async function refreshBalance() {
+  if (!connected) return;
+  try {
+    const r = await fetch(`${API}/api/account`, {
+      headers:{'X-API-Key':apiKey,'X-API-Secret':apiSecret}
+    });
+    if (r.ok) updateBalance(await r.json());
+  } catch {}
+}
+
+// Tickers — fetched via FastAPI /api/tickers (which calls Binance internally)
+const TM = {BTCUSDT:'BTC',ETHUSDT:'ETH',BNBUSDT:'BNB',SOLUSDT:'SOL'};
+async function fetchTickers() {
+  try {
+    const r = await fetch(`${API}/api/tickers`);
+    const d = await r.json();
+    (d.tickers||[]).forEach(t => {
+      const s = TM[t.symbol]; if(!s) return;
+      document.getElementById(`tp-${s}`).textContent =
+        parseFloat(t.lastPrice).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+      const chg = parseFloat(t.priceChangePercent);
+      const el  = document.getElementById(`tc-${s}`);
+      el.textContent = (chg>=0?'+':'')+chg.toFixed(2)+'%';
+      el.className   = 'tick-chg '+(chg>=0?'up':'down');
+    });
+  } catch {}
+}
+fetchTickers(); setInterval(fetchTickers, 8000);
+
+// Side / Type
+function setSide(s) {
+  side = s;
+  document.getElementById('sBuy').className  = 'side-btn '+(s==='BUY' ?'buy':'');
+  document.getElementById('sSell').className = 'side-btn '+(s==='SELL'?'sell':'');
+  document.getElementById('submitBtn').className = `btn-submit ${s==='BUY'?'buy':'sell'}`;
+  document.getElementById('subLabel').textContent = s==='BUY'?'EXECUTE LONG':'EXECUTE SHORT';
+  document.getElementById('sumSide').textContent = s;
+  updateSummary();
+}
+function setType(t) {
+  orderType = t;
+  document.getElementById('tMarket').className = 'type-btn'+(t==='MARKET'?' active':'');
+  document.getElementById('tLimit').className  = 'type-btn'+(t==='LIMIT' ?' active':'');
+  document.getElementById('priceWrap').className = 'ibox price-wrap'+(t==='LIMIT'?'':' hidden');
+  document.getElementById('sumPrRow').style.display = t==='LIMIT'?'flex':'none';
+  document.getElementById('sumType').textContent = t;
+  updateSummary();
+}
+function updateSummary() {
+  const sym = document.getElementById('symbol').value||'—';
+  const qty = document.getElementById('qty').value;
+  const pr  = document.getElementById('price').value;
+  document.getElementById('sumSym').textContent = sym.toUpperCase();
+  document.getElementById('sumQty').textContent = qty ? qty+' '+sym.replace('USDT','') : '—';
+  document.getElementById('sumPr').textContent  = pr  ? parseFloat(pr).toLocaleString()+' USDT' : '—';
+}
+
+// Place order — goes via FastAPI which calls bot/orders.py
+async function doOrder() {
+  if (!connected) { toast('Connect to testnet first','err'); return; }
+  if (!serverUp)  { toast('FastAPI server is offline','err'); return; }
+
+  const symbol = document.getElementById('symbol').value.trim().toUpperCase();
+  const qty    = parseFloat(document.getElementById('qty').value);
+  const pr     = document.getElementById('price').value;
+
+  if (!symbol)           { toast('Enter a symbol','err'); return; }
+  if (isNaN(qty)||qty<=0){ toast('Enter a valid quantity','err'); return; }
+  if (orderType==='LIMIT'&&(!pr||parseFloat(pr)<=0)) { toast('Enter a limit price','err'); return; }
+
+  const btn  = document.getElementById('submitBtn');
+  const spin = document.getElementById('subSpin');
+  const lbl  = document.getElementById('subLabel');
+  btn.disabled=true; spin.classList.add('on'); lbl.textContent='SENDING…';
+
+  log(`→ POST /api/order | ${side} ${orderType} ${symbol} qty=${qty}${orderType==='LIMIT'?' price='+pr:''}`, 'info');
+
+  const payload = { symbol, side, type:orderType, quantity:qty,
+    ...(orderType==='LIMIT'&&{price:parseFloat(pr)}) };
+
+  try {
+    const r = await fetch(`${API}/api/order`, {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'X-API-Key':apiKey,
+        'X-API-Secret':apiSecret,
+      },
+      body: JSON.stringify(payload),
+    });
+    const d = await r.json();
+
+    if (!r.ok) {
+      const msg = d.detail||`HTTP ${r.status}`;
+      log(`✘ Order failed: ${msg}`,'error');
+      showResp(false, null, msg);
+      toast('Order failed','err');
+      addHistory(symbol, side, orderType, qty, 'error');
+    } else {
+      const o = d.order;
+      log(`✔ orderId=${o.orderId} status=${o.status} executedQty=${o.executedQty}`,'success');
+      showResp(true, o);
+      toast(`✔ ${o.status}`,'ok');
+      addHistory(symbol, side, orderType, qty, (o.status||'').toLowerCase());
+      refreshBalance();
+    }
+  } catch(err) {
+    log(`Network error: ${err.message}`,'error');
+    showResp(false, null, err.message);
+    toast('Network error','err');
+  } finally {
+    btn.disabled=false; spin.classList.remove('on');
+    lbl.textContent = side==='BUY'?'EXECUTE LONG':'EXECUTE SHORT';
+  }
+}
+
+// Response card
+function showResp(ok, o, errMsg='') {
+  const card = document.getElementById('respCard');
+  const tag  = document.getElementById('respTag');
+  card.className = 'resp-card show';
+  tag.className  = `resp-tag ${ok?'ok':'err'}`;
+  tag.textContent = ok?'✔ SUCCESS':'✘ FAILED';
+  document.getElementById('respTs').textContent = new Date().toTimeString().slice(0,8)+' UTC';
+  const body = document.getElementById('respBody');
+  if (ok && o) {
+    const rows = [
+      ['Order ID',o.orderId,'big'],['Status',o.status,o.status==='FILLED'?'filled':'new'],
+      ['Symbol',o.symbol,''],['Side',o.side,''],['Type',o.type,''],
+      ['Orig Qty',o.origQty,''],['Executed Qty',o.executedQty,''],
+      ['Avg Price',o.avgPrice||'—',''],['Limit Price',o.price||'—',''],
+      ['Time In Force',o.timeInForce||'—',''],
+    ];
+    body.innerHTML = rows.map(([k,v,c]) =>
+      `<div class="resp-row"><span class="resp-k">${k}</span><span class="resp-v ${c}">${esc(String(v))}</span></div>`
+    ).join('');
+  } else {
+    body.innerHTML = `<div class="resp-row"><span class="resp-k">Error</span><span class="resp-v" style="color:var(--red)">${esc(errMsg)}</span></div>`;
+  }
+  card.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+// History
+function addHistory(symbol, s, type, qty, status) {
+  const list  = document.getElementById('histList');
+  const badge = status==='filled'?'filled':status==='new'?'new':'error';
+  const el    = document.createElement('div');
+  el.className = 'hist-item';
+  el.innerHTML = `<span class="h-side ${s.toLowerCase()}">${s}</span>
+    <span class="h-info">${symbol} · ${type}<br>${qty}</span>
+    <span><span class="h-badge ${badge}">${status.toUpperCase()}</span><br>
+    <span style="color:var(--text-dim);font-size:8px">${new Date().toTimeString().slice(0,8)}</span></span>`;
+  list.insertBefore(el, list.firstChild);
+}
+
+// Init
+log('NEXUS Terminal loaded');
+log('Checking FastAPI server at localhost:8000…');
+setType('MARKET'); setSide('BUY'); updateSummary();
+</script>
+</body>
+</html>
